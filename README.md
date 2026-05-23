@@ -21,9 +21,12 @@ compunube/
 │       └── Evidencia/          # Capturas de pantalla del proceso
 ├── Modulo2/
 │   ├── documentos/             # Guías del módulo 2
-│   └── Practica1_LXD/
-│       └── entrega/
-│           └── evidencia/      # 22 capturas del proceso LXD
+│   ├── Practica1_LXD/
+│   │   └── entrega/
+│   │       ├── Informe_LXD_Milton_Jaramillo.pdf
+│   │       └── evidencia/      # 22 capturas del proceso LXD
+│   ├── Practica2_M2A3/         # Próximamente
+│   └── Microproyecto1_HAProxy/ # Cluster LXD + HAProxy + JMeter (próximamente)
 ├── Modulo3/                    # Próximamente
 └── README.md
 ```
