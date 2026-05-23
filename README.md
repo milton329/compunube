@@ -16,13 +16,14 @@ compunube/
 ├── Instaladores/               # Instaladores usados en las prácticas (no versionados)
 ├── Modulo1/
 │   ├── guias/                  # Guías del módulo 1
-│   │   ├── M1A2_Guia1_ComputacionNube.pdf
-│   │   └── M1A2_Guia2_ComputacionNube.pdf
-│   └── entrega/                # Informe y evidencias de la práctica 1
+│   └── entrega/                # Informe, evidencias y video
 │       ├── Informe_Practica1_Vagrant_MiltonJaramillo_v2.pdf
 │       └── Evidencia/          # Capturas de pantalla del proceso
 ├── Modulo2/
-│   └── Practica2_LXD/          # Contenedores con LXD (próximamente)
+│   ├── documentos/             # Guías del módulo 2
+│   └── Practica1_LXD/
+│       └── entrega/
+│           └── evidencia/      # 22 capturas del proceso LXD
 ├── Modulo3/                    # Próximamente
 └── README.md
 ```
@@ -73,11 +74,48 @@ vagrant halt
 ```
 
 ### Box publicado en Vagrant Cloud
-El box modificado está disponible públicamente en:
 **https://app.vagrantup.com/milton329/boxes/ubuntu-20.04-practica1**
 
-### Repositorio GitHub
-**https://github.com/milton329/compunube**
+---
+
+## Módulo 2 — Práctica 1: Linux Containers (LXD)
+
+### Descripción
+Instalación y configuración de **LXD** sobre las VMs Vagrant. Creación y gestión de contenedores Linux, snapshots, servidor web Apache y configuración SSH.
+
+### Herramientas utilizadas
+| Herramienta | Versión |
+|---|---|
+| LXD | 4.0 |
+| Apache2 | 2.4.41 |
+| OpenSSH Server | 8.2p1 |
+| Ubuntu 20.04 | LTS |
+
+### Contenedores configurados
+| Contenedor | Puerto Web | Puerto SSH | Descripción |
+|---|---|---|---|
+| web | 5080 | — | Servidor Apache de prueba |
+| server | 5081 | 2223 | Servidor final con Apache + SSH |
+
+### Comandos principales
+```bash
+# Instalar LXD
+sudo apt-get install lxd -y
+newgrp lxd
+lxd init --auto
+
+# Crear contenedor
+lxc launch ubuntu:20.04 server
+
+# Reenvío de puertos
+lxc config device add server myport80 proxy listen=tcp:192.168.100.3:5081 connect=tcp:127.0.0.1:80
+
+# SSH al contenedor
+ssh -p 2223 remoto@192.168.100.3
+
+# Transferir archivo
+scp -P 2223 archivo.txt remoto@192.168.100.3:~/
+```
 
 ---
 
@@ -87,4 +125,4 @@ El box modificado está disponible públicamente en:
   bcdedit /set hypervisorlaunchtype off
   ```
   Luego reiniciar el equipo.
-- Los instaladores no están versionados en git por su tamaño (>100MB). Se encuentran en la carpeta `Instaladores/` de forma local.
+- Los instaladores, videos y archivos grandes no están versionados en git. Se encuentran en las carpetas locales correspondientes.
