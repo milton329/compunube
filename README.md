@@ -25,7 +25,10 @@ compunube/
 │   │   └── entrega/
 │   │       ├── Informe_LXD_Milton_Jaramillo.pdf
 │   │       └── evidencia/      # 22 capturas del proceso LXD
-│   ├── Practica2_M2A3/         # Próximamente
+│   ├── Practica2_M2A3/
+│   │   └── entrega/
+│   │       ├── Informe_HAProxy_LXD_Milton_Jaramillo.pdf
+│   │       └── evidencia/      # 9 capturas del proceso HAProxy + JMeter
 │   └── Microproyecto1_HAProxy/ # Cluster LXD + HAProxy + JMeter (próximamente)
 ├── Modulo3/                    # Próximamente
 └── README.md
@@ -119,6 +122,68 @@ ssh -p 2223 remoto@192.168.100.3
 # Transferir archivo
 scp -P 2223 archivo.txt remoto@192.168.100.3:~/
 ```
+
+---
+
+## Módulo 2 — Práctica 2 (M2A3): Balanceo de Carga con HAProxy y LXD
+
+### Descripción
+Implementación de un **balanceador de carga** usando **HAProxy** y contenedores **LXD** sobre las VMs Vagrant. Dos servidores Apache reciben tráfico balanceado via Round Robin, con pruebas de fallo y pruebas de carga con JMeter.
+
+### Herramientas utilizadas
+| Herramienta | Versión |
+|---|---|
+| LXD | 4.0.9 |
+| HAProxy | 2.0.33 |
+| Apache2 | 2.4.41 |
+| Apache JMeter | 5.6.3 |
+| Java | 1.8.0_491 |
+
+### Arquitectura implementada
+```
+[Anfitrión Windows]
+        │  http://192.168.100.3
+        ▼
+[servidorUbuntu VM - 192.168.100.3]
+        │
+        ▼
+[Contenedor haproxy - 10.149.16.127]  ← HAProxy Round Robin
+        ├──▶ [Contenedor web1 - 10.149.16.40]   Apache "Hello from web1"
+        └──▶ [Contenedor web2 - 10.149.16.101]  Apache "Hello from web2"
+```
+
+### Comandos principales
+```bash
+# Crear los 3 contenedores de una vez
+lxc launch ubuntu:20.04 web1 && lxc launch ubuntu:20.04 web2 && lxc launch ubuntu:20.04 haproxy
+
+# Instalar Apache en web1 y web2
+lxc exec web1 -- bash -c "apt install -y apache2 && echo 'Hello from web1' > /var/www/html/index.html && systemctl start apache2"
+lxc exec web2 -- bash -c "apt install -y apache2 && echo 'Hello from web2' > /var/www/html/index.html && systemctl start apache2"
+
+# Instalar HAProxy
+lxc exec haproxy -- bash -c "apt install -y haproxy"
+
+# Port forwarding para acceso desde el anfitrión
+lxc config device add haproxy http proxy listen=tcp:0.0.0.0:80 connect=tcp:10.149.16.127:80
+
+# Verificar balanceo
+curl 10.149.16.127 && curl 10.149.16.127
+```
+
+### Accesos
+| Recurso | URL |
+|---|---|
+| Balanceador de carga | http://192.168.100.3/ |
+| Dashboard HAProxy | http://192.168.100.3/haproxy?stats (admin/admin) |
+
+### Resultados JMeter
+| Métrica | Valor |
+|---|---|
+| Total peticiones | 10,000 |
+| Throughput | 379.1 req/seg |
+| Tiempo promedio | 358 ms |
+| Error rate | 0.45% |
 
 ---
 
