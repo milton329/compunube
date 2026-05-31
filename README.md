@@ -3,7 +3,7 @@
 Repositorio de prácticas de la especialización en Computación en la Nube.
 
 **Estudiante:** Milton Jaramillo
-**Docente:** Prof. Oscar Mondragón
+**Docente:** Prof. Heberth Fabián Martínez Velásquez
 **Institución:** UAO Virtual
 **Año:** 2026
 
@@ -29,7 +29,9 @@ compunube/
 │   │   └── entrega/
 │   │       ├── Informe_HAProxy_LXD_Milton_Jaramillo.pdf
 │   │       └── evidencia/      # 9 capturas del proceso HAProxy + JMeter
-│   └── Microproyecto1_HAProxy/ # Cluster LXD + HAProxy + JMeter (próximamente)
+│   └── Microproyecto1_HAProxy/
+│       └── entrega/
+│           └── evidencia/      # 11 capturas: cluster, contenedores, HAProxy, páginas UAO, JMeter
 ├── Modulo3/                    # Próximamente
 └── README.md
 ```
@@ -190,7 +192,13 @@ curl 10.149.16.127 && curl 10.149.16.127
 ## Módulo 2 — Microproyecto 1 (M2A4): Cluster LXD + HAProxy + Servidores Backup
 
 ### Descripción
-Implementación de un **cluster LXD multi-nodo** con balanceo de carga **HAProxy**, servidores de producción y backup, página de error personalizada UAO y pruebas de carga con JMeter. Los contenedores se distribuyen entre dos nodos Vagrant.
+Implementación de un **cluster LXD multi-nodo** con balanceo de carga **HAProxy**, servidores de producción y backup, página de error 503 personalizada con diseño UAO y pruebas de carga con JMeter.
+
+Los contenedores se distribuyen entre dos nodos Vagrant: **web1 y web2** (producción) en servidorUbuntu, **web3 y web4** (backup) en clienteUbuntu. El balanceador HAProxy atiende requests en Round Robin entre producción; cuando ambos caen, activa automáticamente los backups. Si todos los servidores están caídos, muestra una página 503 personalizada con identidad visual UAO.
+
+Las páginas web de cada servidor tienen diseño propio: **verde** para producción y **naranja** para backup, con header UAO Virtual, gradiente institucional y tarjetas con nombre del servidor. Se usó base64 para transferir los archivos HTML a los contenedores al no tener `/vagrant` montado.
+
+El reto principal fue la **comunicación cross-node**: los contenedores en clienteUbuntu no son alcanzables directamente desde el contenedor haproxy en servidorUbuntu. Se resolvió con proxy devices LXD en clienteUbuntu que exponen web3 y web4 en la IP de la VM (192.168.100.2:8083 y 8084).
 
 ### Herramientas utilizadas
 | Herramienta | Versión |
