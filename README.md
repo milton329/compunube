@@ -187,6 +187,117 @@ curl 10.149.16.127 && curl 10.149.16.127
 
 ---
 
+## Módulo 2 — Microproyecto 1 (M2A4): Cluster LXD + HAProxy + Servidores Backup
+
+### Descripción
+Implementación de un **cluster LXD multi-nodo** con balanceo de carga **HAProxy**, servidores de producción y backup, página de error personalizada UAO y pruebas de carga con JMeter. Los contenedores se distribuyen entre dos nodos Vagrant.
+
+### Herramientas utilizadas
+| Herramienta | Versión |
+|---|---|
+| LXD Cluster | 4.0.9 |
+| HAProxy | 2.0.33 |
+| Apache2 | 2.4.41 |
+| Apache JMeter | 5.6.3 |
+| Java | 1.8.0_491 |
+
+### Arquitectura implementada
+```
+[Anfitrión Windows]
+        │  http://192.168.100.3
+        ▼
+[servidorUbuntu - 192.168.100.3]  ←── Nodo 1 del Cluster LXD
+        │  (haproxy, web1, web2)
+        ▼
+[Contenedor haproxy]  ← HAProxy Round Robin
+        ├──▶ [web1 - servidorUbuntu]  Produccion (verde)
+        ├──▶ [web2 - servidorUbuntu]  Produccion (verde)
+        ├──▶ [web3 - clienteUbuntu]   Backup (naranja)  ← 192.168.100.2:8083
+        └──▶ [web4 - clienteUbuntu]   Backup (naranja)  ← 192.168.100.2:8084
+
+[clienteUbuntu - 192.168.100.2]  ←── Nodo 2 del Cluster LXD
+        │  (web3, web4)
+```
+
+### Configuración del Cluster LXD
+```bash
+# Bootstrap nodo 1 (servidorUbuntu) con preseed
+cat <<EOF | lxd init --preseed
+config:
+  core.https_address: 192.168.100.3:8443
+  core.trust_password: clustersecret
+cluster:
+  server_name: servidorUbuntu
+  enabled: true
+EOF
+
+# Unir nodo 2 (clienteUbuntu)
+cat <<EOF | lxd init --preseed
+cluster:
+  enabled: true
+  server_name: clienteUbuntu
+  server_address: 192.168.100.2:8443
+  cluster_address: 192.168.100.3:8443
+  cluster_password: clustersecret
+  cluster_certificate: |
+    <certificado del nodo 1>
+EOF
+```
+
+### Configuración HAProxy (backup + error personalizado)
+```
+frontend http
+    bind *:80
+    default_backend web-backend
+
+backend web-backend
+    balance roundrobin
+    stats enable
+    stats auth admin:admin
+    stats uri /haproxy?stats
+    server web1 <ip-web1>:80 check
+    server web2 <ip-web2>:80 check
+    server web3 192.168.100.2:8083 check backup
+    server web4 192.168.100.2:8084 check backup
+    errorfile 503 /etc/haproxy/errors/503.http
+```
+
+### Port forwarding cross-node (clienteUbuntu)
+```bash
+# Exponer web3 y web4 al exterior para que HAProxy los alcance
+lxc config device add web3 http proxy listen=tcp:192.168.100.2:8083 connect=tcp:127.0.0.1:80
+lxc config device add web4 http proxy listen=tcp:192.168.100.2:8084 connect=tcp:127.0.0.1:80
+```
+
+### Accesos
+| Recurso | URL |
+|---|---|
+| Balanceador de carga | http://192.168.100.3/ |
+| Dashboard HAProxy | http://192.168.100.3/haproxy?stats (admin/admin) |
+
+### Resultados JMeter
+| Escenario | Muestras | Promedio | Throughput | Error % |
+|---|---|---|---|---|
+| Normal (100 usuarios, 10 loops) | 1,000 | 39 ms | 104.1 req/seg | 0.00% |
+| Estrés (500 usuarios, 20 loops) | 11,000 | 891 ms | 67.6 req/seg | 6.24% |
+
+### Evidencias (11 capturas)
+| # | Pantallazo | Descripción |
+|---|---|---|
+| 01 | cluster_lxd_activo | Cluster LXD con ambos nodos ONLINE |
+| 02 | contenedores_distribuidos | lxc list mostrando contenedores en ambos nodos |
+| 03 | haproxy_stats_produccion_UP | Dashboard HAProxy todos los servidores UP |
+| 04 | backup_servidores_caidos | HAProxy activando backup al caer producción |
+| 05 | pagina_error_personalizada | Página 503 UAO cuando todos los servidores caen |
+| 06 | pagina_web1_produccion_UAO | Página web1 verde con diseño UAO |
+| 07 | pagina_web2_produccion_UAO | Página web2 verde con diseño UAO |
+| 08 | pagina_web3_backup_UAO | Página web3 naranja (backup) con diseño UAO |
+| 09 | pagina_web4_backup_UAO | Página web4 naranja (backup) con diseño UAO |
+| 10 | jmeter_escenario_normal | Summary Report 1000 peticiones, 0% error |
+| 11 | jmeter_escenario_estres | Summary Report 11000 peticiones bajo estrés |
+
+---
+
 ## Notas importantes
 - Se requiere desactivar **Hyper-V** en Windows 11 para que VirtualBox funcione correctamente:
   ```
