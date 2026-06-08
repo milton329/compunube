@@ -3,7 +3,7 @@
 Repositorio de prácticas de la especialización en Computación en la Nube.
 
 **Estudiante:** Milton Jaramillo
-**Docente:** Prof. Heberth Fabián Martínez Velásquez
+**Docente:** Prof. Oscar Mondragón
 **Institución:** UAO Virtual
 **Año:** 2026
 
@@ -33,7 +33,12 @@ compunube/
 │       └── entrega/
 │           ├── Microproyecto1_ClusterLXD_HAProxy_Milton_Jaramillo.pdf
 │           └── evidencia/      # 11 capturas: cluster, contenedores, HAProxy, páginas UAO, JMeter
-├── Modulo3/                    # Próximamente
+├── Modulo3/
+│   ├── documentos/             # Guías del módulo 3
+│   └── Microproyecto2_kubernetes_azure/
+│       ├── README.md
+│       └── entrega/
+│           └── evidencia/      # 17 capturas del proceso AKS
 └── README.md
 ```
 
@@ -304,6 +309,88 @@ lxc config device add web4 http proxy listen=tcp:192.168.100.2:8084 connect=tcp:
 | 09 | pagina_web4_backup_UAO | Página web4 naranja (backup) con diseño UAO |
 | 10 | jmeter_escenario_normal | Summary Report 1000 peticiones, 0% error |
 | 11 | jmeter_escenario_estres | Summary Report 11000 peticiones bajo estrés |
+
+---
+
+## Módulo 3 — Microproyecto 2: Kubernetes en Azure (AKS)
+
+### Descripción
+Implementación de un clúster de **Azure Kubernetes Service (AKS)** con despliegue de aplicaciones y demostración de supervisión y monitoreo en la nube de Azure.
+
+### Herramientas utilizadas
+| Herramienta | Versión |
+|---|---|
+| Azure Kubernetes Service (AKS) | Kubernetes 1.34.8 |
+| Azure CLI | 2.87.0 |
+| kubectl | 1.36.1 |
+| TensorFlow / MobileNetV2 | tensorflow:latest-jupyter |
+| Grafana | 13.0.2 |
+
+### Configuración del clúster
+| Parámetro | Valor |
+|---|---|
+| Nombre | aks-microproyecto2 |
+| Grupo de recursos | rg-microproyecto2 |
+| Región | East US 2 |
+| Nodos | 2 (Standard_D2s_v3, Ubuntu 22.04 LTS) |
+| Plan | Gratis |
+
+### Aplicaciones desplegadas
+| App | Imagen | Puerto | Descripción |
+|---|---|---|---|
+| image-classifier | tensorflow/tensorflow:latest-jupyter | 8888 | Jupyter + MobileNetV2 para clasificación de imágenes |
+| grafana | grafana/grafana:latest | 3000 | Dashboard de monitoreo |
+
+### Comandos principales
+```bash
+# Conectar al cluster
+az aks get-credentials --resource-group rg-microproyecto2 --name aks-microproyecto2
+
+# Verificar nodos
+kubectl get nodes
+kubectl get nodes -o wide
+
+# Ver todos los recursos
+kubectl get pods && kubectl get services
+
+# Desplegar app
+kubectl create deployment <nombre> --image=<imagen>
+kubectl expose deployment <nombre> --type=LoadBalancer --port=<puerto>
+
+# Ver logs
+kubectl logs <nombre-pod>
+
+# Eliminar cluster (ahorrar créditos)
+az group delete --name rg-microproyecto2 --yes --no-wait
+```
+
+### Métricas del clúster (Azure Monitor)
+| Métrica | Valor |
+|---|---|
+| CPU Usage (Max) | 47% |
+| API Server Memory Usage | 15% |
+| Pods en ejecución | 25 |
+| Nodos listos | 2/2 |
+
+### Evidencias (17 capturas)
+| # | Archivo | Descripción |
+|---|---|---|
+| 01 | 01_cluster_aks_creado.png | Implementación completada en Azure Portal |
+| 02 | 02_cluster_aks_detalle.png | Detalle del cluster en ejecución |
+| 03 | 03_cloud_shell_abierto.png | Cloud Shell de Azure abierto |
+| 04 | 04_get_credentials.png | Credenciales del cluster obtenidas |
+| 05 | 05_kubectl_get_nodes.png | Nodos verificados desde Cloud Shell |
+| 06 | 06_kubectl_get_nodes_wide.png | Detalle completo de los nodos |
+| 07 | 07_azure_cli_version.png | Azure CLI instalado en Windows |
+| 08 | 08_kubectl_get_nodes_cli_windows.png | Nodos verificados desde CLI Windows |
+| 09 | 09_app_clasificacion_jupyter.png | Jupyter corriendo en AKS |
+| 10 | 10_clasificacion_imagenes_resultado_1.png | Resultado clasificación de imágenes |
+| 11 | 11_grafana_servicio.png | Servicio Grafana expuesto con IP pública |
+| 12 | 12_grafana_dashboard.png | Dashboard Grafana en funcionamiento |
+| 13 | 13_aks_supervision_parte1.png | Supervisión AKS - nodos y pods |
+| 14 | 13_aks_supervision_parte2.png | Supervisión AKS - CPU y memoria |
+| 15 | 14_aks_metricas_memoria.png | Métricas de memoria del API Server |
+| 16 | 15_aks_metricas_cpu_memoria.png | Métricas de CPU y memoria combinadas |
 
 ---
 
