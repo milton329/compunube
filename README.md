@@ -314,8 +314,6 @@ lxc config device add web4 http proxy listen=tcp:192.168.100.2:8084 connect=tcp:
 
 ## Módulo 3 — Microproyecto 2: Kubernetes en Azure (AKS)
 
-**Elaborado por:** Prof. Oscar Mondragón
-
 ### Descripción
 Implementación de un clúster de **Azure Kubernetes Service (AKS)** de dos nodos en la nube de Microsoft Azure. Se despliegan dos aplicaciones (clasificación de imágenes con deep learning y Grafana como herramienta de monitoreo) y se demuestra el uso de los servicios de supervisión que provee AKS mediante Azure Monitor.
 
