@@ -3,7 +3,7 @@
 Repositorio de prácticas de la especialización en Computación en la Nube.
 
 **Estudiante:** Milton Jaramillo
-**Docente:** Prof. Oscar Mondragón
+**Docente:** Prof. Heberth Fabián Martínez Velásquez
 **Institución:** UAO Virtual
 **Año:** 2026
 
@@ -314,17 +314,51 @@ lxc config device add web4 http proxy listen=tcp:192.168.100.2:8084 connect=tcp:
 
 ## Módulo 3 — Microproyecto 2: Kubernetes en Azure (AKS)
 
+**Elaborado por:** Prof. Oscar Mondragón
+
 ### Descripción
-Implementación de un clúster de **Azure Kubernetes Service (AKS)** con despliegue de aplicaciones y demostración de supervisión y monitoreo en la nube de Azure.
+Implementación de un clúster de **Azure Kubernetes Service (AKS)** de dos nodos en la nube de Microsoft Azure. Se despliegan dos aplicaciones (clasificación de imágenes con deep learning y Grafana como herramienta de monitoreo) y se demuestra el uso de los servicios de supervisión que provee AKS mediante Azure Monitor.
+
+AKS es un servicio gestionado de Kubernetes que elimina la complejidad operativa del plano de control, permitiendo enfocarse en el despliegue y gestión de aplicaciones en contenedores.
+
+### Objetivos
+- Crear y configurar un clúster AKS desde Azure Portal
+- Verificar el funcionamiento del clúster mediante Cloud Shell y Azure CLI
+- Desplegar una aplicación de clasificación de imágenes con deep learning
+- Desplegar una aplicación de interés (Grafana)
+- Demostrar el monitoreo y supervisión del clúster con Azure Monitor
 
 ### Herramientas utilizadas
-| Herramienta | Versión |
-|---|---|
-| Azure Kubernetes Service (AKS) | Kubernetes 1.34.8 |
-| Azure CLI | 2.87.0 |
-| kubectl | 1.36.1 |
-| TensorFlow / MobileNetV2 | tensorflow:latest-jupyter |
-| Grafana | 13.0.2 |
+| Herramienta | Versión | Uso |
+|---|---|---|
+| Azure Kubernetes Service (AKS) | Kubernetes 1.34.8 | Orquestador de contenedores en la nube |
+| Azure CLI | 2.87.0 | Gestión del clúster desde Windows |
+| kubectl | 1.36.1 | Interacción con el clúster Kubernetes |
+| TensorFlow / Keras | tensorflow:latest-jupyter | Modelo MobileNetV2 para clasificación de imágenes |
+| Grafana | 13.0.2 | Dashboard de monitoreo y visualización |
+| Azure Monitor | — | Supervisión nativa de métricas AKS |
+
+### Arquitectura implementada
+```
+[Windows 11 — Azure CLI + kubectl]
+        │
+        ▼
+[Azure Kubernetes Service — East US 2]
+        │
+        ├── Plano de control (gestionado por Azure)
+        │       ├── API Server  (CPU: 6%, Memoria: 15%)
+        │       └── etcd, scheduler, controller-manager
+        │
+        └── Grupo de nodos — agentpool (2 nodos Standard_D2s_v3)
+                ├── aks-agentpool-vmss000000  (CPU: 41%, Mem: 22%)
+                └── aks-agentpool-vmss000001  (CPU: 47%, Mem: 22%)
+                        │
+                        ├── [image-classifier]  tensorflow/tensorflow:latest-jupyter
+                        │       └── Service LoadBalancer → 52.177.38.104:8888
+                        │
+                        └── [grafana]  grafana/grafana:latest
+                                └── Service LoadBalancer → 52.184.200.57:3000
+```
 
 ### Configuración del clúster
 | Parámetro | Valor |
@@ -332,65 +366,163 @@ Implementación de un clúster de **Azure Kubernetes Service (AKS)** con desplie
 | Nombre | aks-microproyecto2 |
 | Grupo de recursos | rg-microproyecto2 |
 | Región | East US 2 |
-| Nodos | 2 (Standard_D2s_v3, Ubuntu 22.04 LTS) |
-| Plan | Gratis |
+| Versión Kubernetes | 1.34.8 |
+| Nodos | 2 × Standard_D2s_v3 (2 vCPU, 8 GiB RAM) |
+| Sistema operativo | Ubuntu 22.04 LTS |
+| Runtime | containerd 1.7.31 |
+| Plan de tarifa | Gratis |
+| Red | Azure CNI (Superposición) |
 
-### Aplicaciones desplegadas
-| App | Imagen | Puerto | Descripción |
-|---|---|---|---|
-| image-classifier | tensorflow/tensorflow:latest-jupyter | 8888 | Jupyter + MobileNetV2 para clasificación de imágenes |
-| grafana | grafana/grafana:latest | 3000 | Dashboard de monitoreo |
+> **Nota para cuentas de estudiante:** La Serie B no es compatible con AKS. El tamaño `Standard_DS2_v2` puede estar restringido según la región. Se recomienda usar `Standard_D2s_v3` con escalado manual de 2 nodos para mantenerse dentro de la cuota de 4 vCPU de Azure for Students.
 
-### Comandos principales
+### Paso 1 — Creación y verificación del clúster
+
+**Desde Azure Cloud Shell:**
 ```bash
-# Conectar al cluster
+# Obtener credenciales del clúster
 az aks get-credentials --resource-group rg-microproyecto2 --name aks-microproyecto2
 
 # Verificar nodos
 kubectl get nodes
 kubectl get nodes -o wide
+```
 
-# Ver todos los recursos
+**Desde Azure CLI en Windows (instalación):**
+```bash
+# Instalar Azure CLI
+# Descargar desde: https://aka.ms/installazurecliwindows
+
+# Verificar instalación
+az --version
+
+# Iniciar sesión (sin cuenta Microsoft personal, usar device code)
+az login --use-device-code
+
+# Instalar kubectl
+az aks install-cli
+
+# Obtener credenciales y verificar nodos
+az aks get-credentials --resource-group rg-microproyecto2 --name aks-microproyecto2
+kubectl get nodes
+```
+
+### Paso 2 — Aplicación de clasificación de imágenes
+
+Se desplegó un servidor Jupyter con TensorFlow que implementa clasificación de imágenes usando el modelo preentrenado **MobileNetV2** (ImageNet, 1000 clases).
+
+```bash
+# Desplegar
+kubectl create deployment image-classifier --image=tensorflow/tensorflow:latest-jupyter
+kubectl expose deployment image-classifier --type=LoadBalancer --port=8888
+
+# Obtener IP pública
+kubectl get services
+
+# Obtener token de acceso a Jupyter
+kubectl logs <nombre-del-pod>
+```
+
+**Código de clasificación ejecutado en Jupyter:**
+```python
+import tensorflow as tf
+from tensorflow.keras.applications import MobileNetV2
+from tensorflow.keras.applications.mobilenet_v2 import preprocess_input, decode_predictions
+import numpy as np
+from PIL import Image
+
+model = MobileNetV2(weights='imagenet')
+
+img_array = np.random.randint(50, 200, (224, 224, 3), dtype=np.uint8)
+img = Image.fromarray(img_array)
+x = np.expand_dims(img_array.astype('float32'), axis=0)
+x = preprocess_input(x)
+
+preds = model.predict(x)
+for i, (_, label, score) in enumerate(decode_predictions(preds, top=3)[0]):
+    print(f"  {i+1}. {label}: {score:.4f}")
+```
+
+**Resultado obtenido:**
+```
+1. velvet: 0.8226
+2. wool: 0.1151
+3. lampshade: 0.0120
+```
+
+### Paso 3 — Aplicación de interés: Grafana
+
+Se desplegó **Grafana v13.0.2** como plataforma de visualización y monitoreo de métricas.
+
+```bash
+# Desplegar
+kubectl create deployment grafana --image=grafana/grafana:latest
+kubectl expose deployment grafana --type=LoadBalancer --port=3000
+
+# Verificar
 kubectl get pods && kubectl get services
+```
 
-# Desplegar app
-kubectl create deployment <nombre> --image=<imagen>
-kubectl expose deployment <nombre> --type=LoadBalancer --port=<puerto>
+**Acceso:** `http://<EXTERNAL-IP>:3000`  
+**Credenciales iniciales:** `admin` / `admin`
 
-# Ver logs
+### Paso 4 — Supervisión y monitoreo con Azure Monitor
+
+Se utilizó **Azure Monitor** integrado en AKS para visualizar métricas del clúster en tiempo real.
+
+**Métricas observadas:**
+| Métrica | Valor | Descripción |
+|---|---|---|
+| CPU Usage Percentage (Max) | 47% | Uso máximo de CPU en los nodos |
+| API Server Memory Usage | 15% | Memoria del servidor de API Kubernetes |
+| Nodos listos | 2/2 | Ambos nodos en estado Ready |
+| Pods en ejecución | 25 | Total de pods activos en el clúster |
+| Ancho de banda de disco OS | 68% | Uso de I/O en disco del sistema |
+
+**Ruta en Azure Portal:** `aks-microproyecto2 → Supervisión → Métricas`
+
+### Comandos de referencia general
+```bash
+# Estado general del clúster
+kubectl get nodes
+kubectl get pods --all-namespaces
+kubectl get services
+
+# Ver logs de un pod
 kubectl logs <nombre-pod>
 
-# Eliminar cluster (ahorrar créditos)
+# Describir un recurso
+kubectl describe pod <nombre-pod>
+kubectl describe service <nombre-service>
+
+# Eliminar recursos
+kubectl delete deployment <nombre>
+kubectl delete service <nombre>
+
+# Eliminar el clúster completo (liberar créditos)
 az group delete --name rg-microproyecto2 --yes --no-wait
 ```
 
-### Métricas del clúster (Azure Monitor)
-| Métrica | Valor |
-|---|---|
-| CPU Usage (Max) | 47% |
-| API Server Memory Usage | 15% |
-| Pods en ejecución | 25 |
-| Nodos listos | 2/2 |
+> **Importante:** AKS consume créditos de Azure rápidamente (~$1.50/hora con 2 nodos Standard_D2s_v3). Se recomienda eliminar el grupo de recursos después de cada sesión y recrear el clúster aproximadamente 1 día antes de la sustentación.
 
 ### Evidencias (17 capturas)
 | # | Archivo | Descripción |
 |---|---|---|
 | 01 | 01_cluster_aks_creado.png | Implementación completada en Azure Portal |
-| 02 | 02_cluster_aks_detalle.png | Detalle del cluster en ejecución |
-| 03 | 03_cloud_shell_abierto.png | Cloud Shell de Azure abierto |
-| 04 | 04_get_credentials.png | Credenciales del cluster obtenidas |
-| 05 | 05_kubectl_get_nodes.png | Nodos verificados desde Cloud Shell |
-| 06 | 06_kubectl_get_nodes_wide.png | Detalle completo de los nodos |
-| 07 | 07_azure_cli_version.png | Azure CLI instalado en Windows |
-| 08 | 08_kubectl_get_nodes_cli_windows.png | Nodos verificados desde CLI Windows |
-| 09 | 09_app_clasificacion_jupyter.png | Jupyter corriendo en AKS |
-| 10 | 10_clasificacion_imagenes_resultado_1.png | Resultado clasificación de imágenes |
-| 11 | 11_grafana_servicio.png | Servicio Grafana expuesto con IP pública |
-| 12 | 12_grafana_dashboard.png | Dashboard Grafana en funcionamiento |
-| 13 | 13_aks_supervision_parte1.png | Supervisión AKS - nodos y pods |
-| 14 | 13_aks_supervision_parte2.png | Supervisión AKS - CPU y memoria |
-| 15 | 14_aks_metricas_memoria.png | Métricas de memoria del API Server |
-| 16 | 15_aks_metricas_cpu_memoria.png | Métricas de CPU y memoria combinadas |
+| 02 | 02_cluster_aks_detalle.png | Detalle del clúster en ejecución (estado, región, versión) |
+| 03 | 03_cloud_shell_abierto.png | Cloud Shell de Azure abierto en el navegador |
+| 04 | 04_get_credentials.png | Credenciales del clúster obtenidas vía Cloud Shell |
+| 05 | 05_kubectl_get_nodes.png | 2 nodos en estado Ready desde Cloud Shell |
+| 06 | 06_kubectl_get_nodes_wide.png | Detalle completo de nodos (IP, OS, runtime) |
+| 07 | 07_azure_cli_version.png | Azure CLI v2.87.0 instalado en Windows |
+| 08 | 08_kubectl_get_nodes_cli_windows.png | 2 nodos Ready verificados desde CLI en Windows |
+| 09 | 09_app_clasificacion_jupyter.png | Jupyter Notebook corriendo en AKS con IP pública |
+| 10 | 10_clasificacion_imagenes_resultado_1.png | Ejecución del modelo MobileNetV2 con predicciones |
+| 11 | 11_grafana_servicio.png | Servicio Grafana expuesto con IP pública asignada |
+| 12 | 12_grafana_dashboard.png | Dashboard Grafana v13 en funcionamiento |
+| 13 | 13_aks_supervision_parte1.png | Supervisión AKS — nodos, pods, eventos |
+| 14 | 13_aks_supervision_parte2.png | Supervisión AKS — CPU por nodo, memoria, disco |
+| 15 | 14_aks_metricas_memoria.png | Gráfica API Server Memory Usage (15%) |
+| 16 | 15_aks_metricas_cpu_memoria.png | Gráfica CPU Usage con pico de actividad (47%) |
 
 ---
 
