@@ -38,6 +38,7 @@ compunube/
 │   └── Microproyecto2_kubernetes_azure/
 │       ├── README.md
 │       └── entrega/
+│           ├── Microproyecto2_kubernetes_azure_Milton_Jaramillo.pdf
 │           └── evidencia/      # 17 capturas del proceso AKS
 └── README.md
 ```
