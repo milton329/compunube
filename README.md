@@ -535,71 +535,131 @@ az group delete --name rg-microproyecto2 --yes --no-wait
 ## Módulo 4 — Práctica 1: IaaS con Azure Virtual Machines
 
 ### Descripción
-Implementación de **Infrastructure as a Service (IaaS)** usando **Azure Virtual Machines**. Se crean y configuran máquinas virtuales Linux y Windows en Azure Portal, se gestiona almacenamiento adicional mediante discos administrados y se despliegan entornos usando plantillas ARM de Azure. Conexión remota vía SSH (Linux) y RDP (Windows).
+Implementación de **Infrastructure as a Service (IaaS)** usando **Azure Virtual Machines**. A diferencia del Módulo 3 (AKS/PaaS), con IaaS se trabaja al nivel más bajo de abstracción de la nube: la máquina virtual como unidad de cómputo con control total sobre el sistema operativo, el almacenamiento y la red.
+
+Se crean y configuran VMs Linux y Windows, se gestiona almacenamiento con discos administrados, se automatizan despliegues con plantillas ARM y se establecen conexiones remotas vía SSH y RDP.
+
+### Objetivos
+- Crear VM Ubuntu 24.04 en Azure Portal, asignar IP pública estática y conectarse por SSH
+- Agregar disco de datos administrado, formatearlo y montarlo en Linux
+- Desplegar VM con Docker preinstalado usando plantilla ARM `docker-simple-on-ubuntu`
+- Explorar el catálogo de plantillas ARM de inicio rápido de Azure
+- Crear VM Windows Server 2025 y conectarse por escritorio remoto (RDP)
 
 ### Herramientas utilizadas
-| Herramienta | Versión/Detalle |
-|---|---|
-| Azure Portal | Creación y gestión de VMs |
-| Azure CLI | v2.87.0 |
-| Azure Virtual Machines | IaaS — VMs Linux y Windows |
-| Azure Managed Disks | SSD Premium 4 GiB |
-| Azure ARM Templates | docker-simple-on-ubuntu, vm-simple-linux |
-| SSH | Conexión a VMs Linux desde PowerShell |
-| RDP (Escritorio Remoto) | Conexión a VM Windows Server 2025 |
-
-### Ejercicios realizados
-| # | Ejercicio | Resultado |
+| Herramienta | Versión | Uso |
 |---|---|---|
-| 1 | VM Ubuntu 24.04 + SSH | vm-ubuntu-practica4, IP 104.209.154.0 ✓ |
-| 2 | Disco adicional | disk-datos-practica4, 4 GiB montado en /mnt/datadisk ✓ |
-| 3 | Template Docker ARM | MyDockerVM, Docker v29.6.0 funcionando ✓ |
-| 4 | Exploración templates | vm-simple-linux explorado en catálogo ✓ |
-| 5 | VM Windows 2025 + RDP | vm-windows-practica4, IP 20.96.119.206 ✓ |
+| Azure Portal | — | Creación y gestión visual de VMs |
+| Azure CLI | 2.87.0 | Gestión de recursos desde Windows PowerShell |
+| Azure Virtual Machines | — | IaaS — VMs Linux y Windows |
+| Azure Managed Disks | SSD Premium | Almacenamiento de datos adicional |
+| Azure ARM Templates | — | Infraestructura como código |
+| SSH (OpenSSH) | Windows built-in | Conexión remota a VMs Linux |
+| RDP (mstsc) | Windows built-in | Escritorio remoto a VM Windows |
 
-### Comandos principales
+### Arquitectura implementada
+```
+[Windows 11 — Azure CLI + PowerShell + mstsc]
+        │
+        ▼
+[Azure — rg-practica4 — East US 2]
+        │
+        ├── vm-ubuntu-practica4  (Ubuntu 24.04 LTS, Standard_D2s_v3)
+        │       ├── IP pública: 104.209.154.0  ← SSH :22
+        │       └── disk-datos-practica4 (SSD 4 GiB) → /mnt/datadisk
+        │
+        ├── MyDockerVM  (Ubuntu 22.04 LTS, Standard_D2s_v3)
+        │       ├── IP pública: 20.96.2.138  ← SSH :22
+        │       └── Docker Engine 29.6.0 (via extensión ARM)
+        │
+        └── vm-windows-practica4  (Windows Server 2025, Standard_D2s_v3)
+                └── IP pública: 20.96.119.206  ← RDP :3389
+```
+
+### Paso 1 — VM Ubuntu + SSH
+
 ```bash
 # Asignar IP pública via Azure CLI
 az network public-ip create --resource-group rg-practica4 --name ip-publica-practica4 --sku Standard --allocation-method Static
 az network nic ip-config update --resource-group rg-practica4 --nic-name vm-ubuntu-practica4583 --name ipconfig1 --public-ip-address ip-publica-practica4
 
-# Conectarse a VM Ubuntu por SSH
-ssh -i "C:\Users\USUARIO\practica4.pem" azureuser@104.209.154.0
+# Corregir permisos .pem en Windows
+icacls "C:\Users\USUARIO\practica4.pem" /inheritance:r /grant:r "$($env:USERNAME):(R)"
 
-# Montar disco adicional en Linux
-sudo mkfs.ext4 /dev/sdc
+# Conectarse por SSH
+ssh -i "C:\Users\USUARIO\practica4.pem" azureuser@104.209.154.0
+```
+**Resultado:** Ubuntu 24.04.4 LTS (GNU/Linux 6.17.0-1018-azure x86_64) — carga 0.0, disco 5.8%
+
+### Paso 2 — Disco de datos adicional
+
+```bash
+lsblk                              # disco /dev/sdc 4G aparece sin montar
+sudo mkfs.ext4 /dev/sdc            # formatear ext4
 sudo mkdir /mnt/datadisk
 sudo mount /dev/sdc /mnt/datadisk
-df -h
+df -h                              # /dev/sdc 3.9G  24K  3.7G  1%  /mnt/datadisk
+```
+**Resultado:** disco `disk-datos-practica4` (SSD Premium 4 GiB) montado en `/mnt/datadisk` con 3.7 GB disponibles.
 
-# Verificar Docker en MyDockerVM
+### Paso 3 — VM con Docker via Template ARM
+
+Plantilla `application-workloads/docker/docker-simple-on-ubuntu` — crea 6 recursos automáticamente: VM, extensión installDocker, NIC, VNet, IP pública, NSG.
+
+```bash
+# Verificar Docker en MyDockerVM (IP: 20.96.2.138)
 docker --version   # Docker version 29.6.0, build fb59821
-docker ps
+docker ps          # sin contenedores activos (instalación limpia)
+```
 
-# Conectarse a VM Windows por RDP
-mstsc   →   20.96.119.206   →   azureuser
+### Paso 4 — Exploración catálogo ARM
 
-# Eliminar recursos al terminar (conservar créditos)
+Se exploró la plantilla `quickstarts/microsoft.compute/vm-simple-linux` (autor: bmoore-msft). Restricción de cuota Azure for Students (4 vCPU DSv3 en East US 2) impidió el despliegue simultáneo de una tercera VM.
+
+### Paso 5 — VM Windows Server 2025 + RDP
+
+```bash
+# Reset contraseña via Azure CLI
+az vm user update -g rg-practica4 -n vm-windows-practica4 --username azureuser --password "Practica4#2026Az"
+
+# Regla NSG: Puerto 3389, TCP, Prioridad 900, Permitir
+# Conexión desde Windows 11:
+mstsc  →  20.96.119.206  →  azureuser
+```
+**Resultado:** Escritorio Windows Server 2025 Datacenter — Server Manager activo, Remote Desktop habilitado, Intel Xeon Platinum 8272CL @ 2.60 GHz.
+
+### Comandos de referencia general
+```bash
+# Login Azure CLI
+az login --use-device-code
+
+# Listar VMs y sus IPs
+az vm list --resource-group rg-practica4 --output table
+az network public-ip list --output table
+
+# Eliminar todos los recursos
 az group delete --name rg-practica4 --yes --no-wait
 ```
+
+> **Importante:** Las VMs consumen créditos incluso detenidas (disco e IP pública siguen facturando). Eliminar el grupo de recursos después de cada sesión.
 
 ### Evidencias (14 capturas)
 | # | Archivo | Descripción |
 |---|---|---|
-| 01 | 01_vm_ubuntu_creacion_clave.png | Popup descarga clave SSH |
-| 02 | 02_vm_ubuntu_desplegada.png | Implementación VM Ubuntu completada |
-| 03 | 03_vm_ubuntu_detalle.png | Detalles VM Ubuntu en portal |
-| 04 | 04_ssh_conexion_vm.png | Conexión SSH exitosa desde PowerShell |
-| 05 | 05_disco_adicional_portal.png | Disco adicional en Azure Portal |
-| 06 | 06_disco_montado.png | Disco montado en /mnt/datadisk (df -h) |
-| 07 | 07_template_docker_seleccionado.png | Template Docker en catálogo |
-| 08 | 08_template_docker_desplegado.png | 6 recursos Docker creados |
-| 09 | 09_docker_verificacion.png | Docker v29.6.0 verificado |
-| 10 | 10_template_linux_seleccionado.png | Template vm-simple-linux explorado |
-| 11 | 11_vm_windows_desplegada.png | VM Windows implementada |
-| 12 | 12_vm_windows_detalle.png | Detalles VM Windows con IP pública |
-| 13 | 13_rdp_windows_conectado.png | Escritorio RDP conectado |
-| 14 | 14_rdp_windows_servidor.png | Server Manager con usuario azureuser |
+| 01 | 01_vm_ubuntu_creacion_clave.png | Popup generación par de claves SSH |
+| 02 | 02_vm_ubuntu_desplegada.png | Implementación VM Ubuntu completada — 4 recursos OK |
+| 03 | 03_vm_ubuntu_detalle.png | Detalles VM Ubuntu: En ejecución, IP privada 10.0.0.4 |
+| 04 | 04_ssh_conexion_vm.png | SSH exitoso: Ubuntu 24.04.4 LTS (IP 104.209.154.0) |
+| 05 | 05_disco_adicional_portal.png | disk-datos-practica4: SSD Premium 4 GiB, LUN 0 |
+| 06 | 06_disco_montado.png | mkfs.ext4 + df -h: /dev/sdc 3.9G en /mnt/datadisk |
+| 07 | 07_template_docker_seleccionado.png | Template docker-simple-on-ubuntu en catálogo ARM |
+| 08 | 08_template_docker_desplegado.png | 6 recursos Docker creados — todos OK |
+| 09 | 09_docker_verificacion.png | Docker version 29.6.0 + docker ps en MyDockerVM |
+| 10 | 10_template_linux_seleccionado.png | Template vm-simple-linux — autor bmoore-msft |
+| 11 | 11_vm_windows_desplegada.png | VM Windows Server 2025: 3 recursos creados — todos OK |
+| 12 | 12_vm_windows_detalle.png | Propiedades: IP 20.96.119.206, Standard_D2s_v3 |
+| 13 | 13_rdp_windows_conectado.png | Escritorio RDP conectado a 20.96.119.206 |
+| 14 | 14_rdp_windows_servidor.png | Server Manager: Windows Server 2025, usuario azureuser |
 
 ---
 
