@@ -40,6 +40,13 @@ compunube/
 │       └── entrega/
 │           ├── Microproyecto2_kubernetes_azure_Milton_Jaramillo.pdf
 │           └── evidencia/      # 17 capturas del proceso AKS
+├── Modulo4/
+│   ├── documentos/             # Guías del módulo 4
+│   └── Practica1_AzureVM/
+│       ├── README.md
+│       └── entrega/
+│           ├── Informe_AzureVM_Milton_Jaramillo.pdf
+│           └── evidencia/      # Capturas del proceso Azure VMs
 └── README.md
 ```
 
@@ -522,6 +529,77 @@ az group delete --name rg-microproyecto2 --yes --no-wait
 | 14 | 13_aks_supervision_parte2.png | Supervisión AKS — CPU por nodo, memoria, disco |
 | 15 | 14_aks_metricas_memoria.png | Gráfica API Server Memory Usage (15%) |
 | 16 | 15_aks_metricas_cpu_memoria.png | Gráfica CPU Usage con pico de actividad (47%) |
+
+---
+
+## Módulo 4 — Práctica 1: IaaS con Azure Virtual Machines
+
+### Descripción
+Implementación de **Infrastructure as a Service (IaaS)** usando **Azure Virtual Machines**. Se crean y configuran máquinas virtuales Linux y Windows en Azure Portal, se gestiona almacenamiento adicional mediante discos administrados y se despliegan entornos usando plantillas ARM de Azure. Conexión remota vía SSH (Linux) y RDP (Windows).
+
+### Herramientas utilizadas
+| Herramienta | Versión/Detalle |
+|---|---|
+| Azure Portal | Creación y gestión de VMs |
+| Azure CLI | v2.87.0 |
+| Azure Virtual Machines | IaaS — VMs Linux y Windows |
+| Azure Managed Disks | SSD Premium 4 GiB |
+| Azure ARM Templates | docker-simple-on-ubuntu, vm-simple-linux |
+| SSH | Conexión a VMs Linux desde PowerShell |
+| RDP (Escritorio Remoto) | Conexión a VM Windows Server 2025 |
+
+### Ejercicios realizados
+| # | Ejercicio | Resultado |
+|---|---|---|
+| 1 | VM Ubuntu 24.04 + SSH | vm-ubuntu-practica4, IP 104.209.154.0 ✓ |
+| 2 | Disco adicional | disk-datos-practica4, 4 GiB montado en /mnt/datadisk ✓ |
+| 3 | Template Docker ARM | MyDockerVM, Docker v29.6.0 funcionando ✓ |
+| 4 | Exploración templates | vm-simple-linux explorado en catálogo ✓ |
+| 5 | VM Windows 2025 + RDP | vm-windows-practica4, IP 20.96.119.206 ✓ |
+
+### Comandos principales
+```bash
+# Asignar IP pública via Azure CLI
+az network public-ip create --resource-group rg-practica4 --name ip-publica-practica4 --sku Standard --allocation-method Static
+az network nic ip-config update --resource-group rg-practica4 --nic-name vm-ubuntu-practica4583 --name ipconfig1 --public-ip-address ip-publica-practica4
+
+# Conectarse a VM Ubuntu por SSH
+ssh -i "C:\Users\USUARIO\practica4.pem" azureuser@104.209.154.0
+
+# Montar disco adicional en Linux
+sudo mkfs.ext4 /dev/sdc
+sudo mkdir /mnt/datadisk
+sudo mount /dev/sdc /mnt/datadisk
+df -h
+
+# Verificar Docker en MyDockerVM
+docker --version   # Docker version 29.6.0, build fb59821
+docker ps
+
+# Conectarse a VM Windows por RDP
+mstsc   →   20.96.119.206   →   azureuser
+
+# Eliminar recursos al terminar (conservar créditos)
+az group delete --name rg-practica4 --yes --no-wait
+```
+
+### Evidencias (14 capturas)
+| # | Archivo | Descripción |
+|---|---|---|
+| 01 | 01_vm_ubuntu_creacion_clave.png | Popup descarga clave SSH |
+| 02 | 02_vm_ubuntu_desplegada.png | Implementación VM Ubuntu completada |
+| 03 | 03_vm_ubuntu_detalle.png | Detalles VM Ubuntu en portal |
+| 04 | 04_ssh_conexion_vm.png | Conexión SSH exitosa desde PowerShell |
+| 05 | 05_disco_adicional_portal.png | Disco adicional en Azure Portal |
+| 06 | 06_disco_montado.png | Disco montado en /mnt/datadisk (df -h) |
+| 07 | 07_template_docker_seleccionado.png | Template Docker en catálogo |
+| 08 | 08_template_docker_desplegado.png | 6 recursos Docker creados |
+| 09 | 09_docker_verificacion.png | Docker v29.6.0 verificado |
+| 10 | 10_template_linux_seleccionado.png | Template vm-simple-linux explorado |
+| 11 | 11_vm_windows_desplegada.png | VM Windows implementada |
+| 12 | 12_vm_windows_detalle.png | Detalles VM Windows con IP pública |
+| 13 | 13_rdp_windows_conectado.png | Escritorio RDP conectado |
+| 14 | 14_rdp_windows_servidor.png | Server Manager con usuario azureuser |
 
 ---
 
