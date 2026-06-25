@@ -2,7 +2,7 @@
 
 **Universidad Autónoma de Occidente — UAO Virtual**  
 **Materia:** Computación en la Nube  
-**Profesor:** Oscar Mondragón  
+**Profesor:** Prof. Heberth Fabián Martínez Velásquez  
 **Estudiante:** Milton Giovanny Jaramillo Herrera  
 **Fecha:** Junio 2026  
 
